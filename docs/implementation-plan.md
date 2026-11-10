@@ -14,6 +14,22 @@ This document defines the build order for the reference implementation described
 | Tools        | Four: customers, accounts, transactions, ledger                                           |
 | Gateway      | agentgateway v1.7, with the config format checked against official docs before use        |
 
+## Invariants
+
+Later phases must keep these decisions. Phase 9's tests check each one.
+
+1. **One JSON text block per tool response.** Tools never return `structuredContent` or an `outputSchema`, so the gateway's response masking has a single field to cover.
+2. **Defense in depth.** App-level input validation, row limits, field allowlists and read-only database access stay in place after gateway authorization is added. Gateway controls are added on top; they never replace these.
+3. **Non-root, read-only runtime.** The MCP server runs as uid 10001. The database is `root:root 0444` under a `root:root 0755` `/data`.
+
+### Access rule until gateway enforcement is verified
+
+The MCP server returns sensitive fields unmasked, and masking is enforced only at the gateway (Phase 7). Until Phases 4–7 are configured and their tests pass:
+
+- **The MCP server is never published to the host.** No `ports:` entry in Compose; it sits only on the `internal: true` network. Running it directly is allowed only for local checks, bound to `127.0.0.1`.
+- **The gateway port is published on `127.0.0.1` only.** In Phase 3 the gateway has no policies, so anything that can reach its port can read raw data. Binding to loopback keeps that baseline local to the developer's machine.
+- **`127.0.0.1` stays the default after Phase 7.** Exposing the gateway more widely is an explicit, documented opt-in, not the default.
+
 ## Phases
 
 ### Phase 0: Check the agentgateway v1.7 docs
@@ -63,11 +79,20 @@ Files: `server.py`, `config.py`, `tools/*.py`, `security/data_restrictions.py`, 
 - `data_restrictions.py` holds the app-level rules: input validation (ID format), a cap on rows returned, and a list of allowed columns.
 - The Dockerfile runs the server as a non-root user.
 
+#### Notes from the build
+
+- **MCP SDK 2.x (`mcp==2.3.0`):** `FastMCP` is now `mcp.server.mcpserver.MCPServer`. Anticipated failures (bad input, not found) are raised as `ToolError`, so the caller gets `isError: true` with the message, and other exceptions reach the caller only as a generic error.
+- **One output field:** every tool is registered with `structured_output=False` and returns one JSON text block. No `outputSchema` or `structuredContent` is sent, so Phase 7 has a single field to mask.
+- **Masking split:** the app drops fields no tool needs (`date_of_birth`) through a per-record field allowlist. It returns the sensitive fields tools do need (national ID, account number, email, phone) unmasked; the gateway masks them in Phase 7. Calling the server directly therefore shows raw data, and Phase 3's network isolation is what prevents that.
+- **Transport:** Streamable HTTP at `/mcp`, stateless, with JSON responses. The gateway owns client sessions.
+- **Image:** `finance.db` is built during the image build and copied in as `root:root 0444` under a `root:root 0755` `/data`. The server runs as uid 10001. Inside the container, SQLite writes, appending to the file, and creating new files in `/data` are all denied.
+- **Tool modules** don't use `from __future__ import annotations`. The SDK evaluates tool signatures when the tool is registered, and the `limit` description refers to a local variable.
+
 ### Phase 3: Network and gateway with no policies
 
 Files: `docker-compose.yml`, `gateway/config/agentgateway.yaml`, `mcp-client/client.py`
 
-- Two networks. The MCP server sits only on an `internal: true` network with no published ports. The gateway sits on both networks and publishes one port.
+- Two networks. The MCP server sits only on an `internal: true` network with no published ports. The gateway sits on both networks and publishes one port, bound to `127.0.0.1` (see the access rule under Invariants).
 - The gateway just routes `/mcp` to the MCP server.
 - `client.py` is a scripted client that lists the tools and calls each one through the gateway.
 
@@ -126,7 +151,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 
 - [x] Phase 0: Check the agentgateway v1.7 docs
 - [x] Phase 1: Data layer
-- [ ] Phase 2: MCP server
+- [x] Phase 2: MCP server
 - [ ] Phase 3: Network and gateway with no policies
 - [ ] Phase 4: Authentication
 - [ ] Phase 5: Tool authorization
