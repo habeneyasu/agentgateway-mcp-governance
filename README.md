@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting, response masking and observability are built and verified. The final test and documentation pass comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting, response masking and observability are built and covered by 69 integration tests. Final documentation comes next. See [Status](#status).
 
 ## Architecture
 
@@ -91,8 +91,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 6 | Rate limiting | ✅ Done |
 | 7 | CEL response guardrails | ✅ Done |
 | 8 | Observability | ✅ Done |
-| 9 | Integration test suite | Next |
-| 10 | Documentation | Planned |
+| 9 | Integration test suite | ✅ Done |
+| 10 | Documentation | Next |
 
 The build order, design decisions and verification notes for each phase are in [docs/implementation-plan.md](docs/implementation-plan.md).
 
@@ -101,7 +101,19 @@ The build order, design decisions and verification notes for each phase are in [
 > [!WARNING]
 > The MCP server returns sensitive fields unmasked; only the gateway masks them. Never publish the MCP server's port. The gateway is bound to `127.0.0.1` by default; exposing it more widely should be a deliberate decision.
 
-Requirements: Docker 28 or later with Docker Compose, Python 3.12, and openssl.
+Requirements: Docker 28 or later with Docker Compose, Python 3.12, openssl and make.
+
+Quick start with make:
+
+```bash
+make venv     # .venv with client and test dependencies
+make up       # generate credentials if missing, build and start the stack
+make demo     # client demo as the auditor
+make test     # 69 integration tests
+make down
+```
+
+The same steps by hand:
 
 ```bash
 scripts/generate_credentials.sh     # signing key, JWKS, session key and demo tokens in gateway/credentials/

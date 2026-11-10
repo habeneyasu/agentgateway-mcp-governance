@@ -10,6 +10,8 @@ import asyncio
 import json
 import logging
 import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +55,19 @@ def token():
             pytest.fail(f"missing {path}; run scripts/generate_credentials.sh")
         return path.read_text().strip()
     return load
+
+
+requires_docker = pytest.mark.skipif(shutil.which("docker") is None, reason="needs the docker CLI")
+
+
+def compose(*args: str, check: bool = True) -> subprocess.CompletedProcess:
+    """Run `docker compose <args>` in the project root."""
+    return subprocess.run(["docker", "compose", *args], cwd=ROOT, capture_output=True, text=True, check=check)
+
+
+def container_python(service: str, code: str) -> str:
+    """Run Python inside a running service container and return its stdout."""
+    return compose("exec", "-T", service, "python", "-c", code).stdout
 
 
 def raw_post(url: str, body: dict[str, Any], headers: dict[str, str] | None = None) -> httpx2.Response:
