@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation and gateway JWT authentication are built and verified. Tool authorization comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication and per-role tool authorization are built and verified. Rate limiting comes next. See [Status](#status).
 
 ## Architecture
 
@@ -54,7 +54,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 | Control | Enforced by | How |
 | --- | --- | --- |
 | Authentication | Gateway | RS256 JWT validation against a local JWKS (`jwtAuth`, strict mode) |
-| Tool authorization | Gateway | CEL rules on JWT claims (`mcpAuthorization`); blocked tools are hidden from the tool list |
+| Tool authorization | Gateway | CEL rules on the JWT `role` claim (`mcpAuthorization`): auditor gets all tools, analyst gets customer and account lookup, other roles get none. Blocked tools are hidden and calls to them denied |
 | Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`) |
 | Response guardrails | Gateway | CEL masking of sensitive fields in tool responses (`mcpGuardrails`) |
 | Observability | Gateway | JSON access logs with caller identity and tool name; Prometheus metrics |
@@ -87,8 +87,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 2 | MCP server: four tools, app-level restrictions, container | ✅ Done |
 | 3 | Network isolation and gateway with no policies | ✅ Done |
 | 4 | Authentication | ✅ Done |
-| 5 | Tool authorization | Next |
-| 6 | Rate limiting | Planned |
+| 5 | Tool authorization | ✅ Done |
+| 6 | Rate limiting | Next |
 | 7 | CEL response guardrails | Planned |
 | 8 | Observability | Planned |
 | 9 | Integration test suite | Planned |
@@ -99,7 +99,7 @@ The build order, design decisions and verification notes for each phase are in [
 ## Running the stack (development only)
 
 > [!WARNING]
-> The gateway requires a valid JWT, but it doesn't yet restrict tools per role or mask sensitive fields (Phases 5 and 7). Until those are in place, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
+> The gateway requires a valid JWT and restricts tools per role, but it doesn't yet mask sensitive fields (Phase 7). Until those are in place, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
 
 Requirements: Docker 28 or later with Docker Compose, Python 3.12, and openssl.
 

@@ -6,6 +6,7 @@
 #   jwks.json                  public key set, mounted read-only into agentgateway
 #   tokens/analyst.jwt         valid token, role=analyst
 #   tokens/auditor.jwt         valid token, role=auditor
+#   tokens/guest.jwt           valid token, role=guest (no tool access)
 #   tokens/expired.jwt         correct signature, expired        (negative test)
 #   tokens/wrong-issuer.jwt    correct signature, wrong iss       (negative test)
 #   tokens/wrong-audience.jwt  correct signature, wrong aud       (negative test)
@@ -69,6 +70,7 @@ KEY="$OUT/signing-key.pem"
 
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/analyst.jwt"
 sign_jwt "$KEY" "$(claims auditor-1 auditor "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/auditor.jwt"
+sign_jwt "$KEY" "$(claims guest-1 guest "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/guest.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "$AUDIENCE" $((NOW - 7200)) $((NOW - 3600)))" > "$TOKENS/expired.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "someone-else" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/wrong-issuer.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "another-service" "$NOW" "$EXP")" > "$TOKENS/wrong-audience.jwt"
