@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer and the MCP server are built and verified. The gateway, client, Docker Compose setup and integration tests are next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, and the gateway with network isolation are built and verified. The gateway doesn't enforce any policies yet; authentication comes next. See [Status](#status).
 
 ## Architecture
 
@@ -60,7 +60,8 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 | Observability | Gateway | JSON access logs with caller identity and tool name; Prometheus metrics |
 | Input validation and limits | MCP server | Strict ID formats, row caps, per-record field allowlists |
 | Read-only storage | MCP server | SQLite `mode=ro` and `PRAGMA query_only`; database file `0444`, owned by root |
-| Network isolation | Docker Compose | MCP server only on an internal network; gateway published on `127.0.0.1` |
+| Network isolation | Docker Compose | MCP server only on an internal, host-isolated network with no internet access; gateway published on `127.0.0.1` |
+| Container hardening | Docker Compose | Non-root users, read-only root filesystems, all capabilities dropped, `no-new-privileges` |
 
 The gateway controls are added on top of the server's own protections, not in place of them.
 
@@ -84,8 +85,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 0 | Confirm the agentgateway v1.7 configuration | ✅ Done |
 | 1 | Data layer: schema, seed data, read-only access | ✅ Done |
 | 2 | MCP server: four tools, app-level restrictions, container | ✅ Done |
-| 3 | Network isolation and gateway with no policies | Next |
-| 4 | Authentication | Planned |
+| 3 | Network isolation and gateway with no policies | ✅ Done |
+| 4 | Authentication | Next |
 | 5 | Tool authorization | Planned |
 | 6 | Rate limiting | Planned |
 | 7 | CEL response guardrails | Planned |
@@ -95,23 +96,36 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 
 The build order, design decisions and verification notes for each phase are in [docs/implementation-plan.md](docs/implementation-plan.md).
 
-## Running the MCP server (development only)
+## Running the stack (development only)
 
 > [!WARNING]
-> The MCP server returns sensitive fields unmasked; masking is the gateway's job. Until the gateway phases are complete, run the server only on `127.0.0.1` for local checks, and never publish its port more widely.
+> The gateway doesn't enforce any policies yet, and the MCP server returns sensitive fields unmasked. Masking is the gateway's job (Phase 7). Until the gateway phases are complete, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
 
-Requirements: Docker.
+Requirements: Docker 28 or later with Docker Compose, and Python 3.12 for the client.
 
 ```bash
-docker build -t agentgateway-mcp-governance/mcp-server:dev mcp-server
-docker run --rm -p 127.0.0.1:8000:8000 agentgateway-mcp-governance/mcp-server:dev
+docker compose up -d --build        # MCP server + agentgateway
+docker compose ps                   # gateway on 127.0.0.1:13000; MCP server has no host port
 ```
 
-The server listens for Streamable HTTP at `http://127.0.0.1:8000/mcp`. Point any MCP client at it, for example the [MCP Inspector](https://github.com/modelcontextprotocol/inspector).
+Run the scripted client through the gateway:
 
-If port 8000 is already in use, change the host side of the mapping, e.g. `-p 127.0.0.1:18000:8000`, and connect to `http://127.0.0.1:18000/mcp`.
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r mcp-client/requirements.txt
 
-Configuration is read from environment variables:
+python mcp-client/client.py demo    # list tools, then call each one
+python mcp-client/client.py list
+python mcp-client/client.py call get_customer '{"customer_id": "CUST-0001"}'
+```
+
+The gateway serves Streamable HTTP at `http://127.0.0.1:13000/mcp`, so any MCP client works, for example the [MCP Inspector](https://github.com/modelcontextprotocol/inspector). To use a different host port, copy `.env.example` to `.env` and set `GATEWAY_PORT`; the client takes `--url` or `MCP_GATEWAY_URL`.
+
+Stop the stack with `docker compose down`.
+
+### MCP server settings
+
+The MCP server reads its configuration from environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -137,7 +151,7 @@ agentgateway-mcp-governance/
 - [agentgateway](https://github.com/agentgateway/agentgateway) v1.7.0
 - [Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk) 2.3.0 on Python 3.12
 - SQLite
-- Docker and Docker Compose
+- Docker 28+ and Docker Compose
 - Pytest
 
 ## Scope

@@ -20,7 +20,7 @@ def create_server(settings: Settings) -> MCPServer:
         name=SERVER_NAME,
         version=SERVER_VERSION,
         instructions=(
-            "Read-only investigation tools over synthetic financial data: "
+            "Read-only governance tools over synthetic financial data: "
             "customers, accounts, transactions and ledger entries."
         ),
     )

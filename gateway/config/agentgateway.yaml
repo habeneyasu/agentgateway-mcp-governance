@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+#
+# agentgateway v1.7 configuration for the MCP governance reference implementation.
+#
+# Phase 3 baseline: route MCP traffic to the internal MCP server with NO policies.
+# Anything that can reach the gateway's port can read unmasked data, so Compose
+# publishes it on 127.0.0.1 only. Policies are added in Phases 4-8:
+#   jwtAuth, mcpAuthorization, localRateLimit, mcpGuardrails, logging/metrics.
+
+binds:
+- port: 3000
+  listeners:
+  - name: mcp
+    routes:
+    - name: mcp-governance
+      backends:
+      - mcp:
+          targets:
+          - name: finance
+            mcp:
+              # Reachable only on the internal Docker network.
+              host: http://mcp-server:8000/mcp

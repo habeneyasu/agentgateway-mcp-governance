@@ -98,6 +98,20 @@ Files: `docker-compose.yml`, `gateway/config/agentgateway.yaml`, `mcp-client/cli
 
 **Done when:** the client works through the gateway, and the MCP server can't be reached from the host.
 
+#### Notes from the build
+
+- **Gateway config:** `binds` → `listeners` → `routes` → `backends.mcp.targets`, with one target named `finance` at `http://mcp-server:8000/mcp`. With one target, tool names are not prefixed. Policies for Phases 4–8 go on the route (`routes[].policies`). Validate with `agentgateway -f <file> --validate-only`.
+- **Host port:** the gateway is published at `127.0.0.1:${GATEWAY_PORT:-13000}`. 13000 avoids common clashes on 3000 and 8000.
+- **Host access to the internal network:** on Linux, `internal: true` alone still lets processes on the Docker host reach the MCP server's container IP directly, bypassing the gateway. Setting `com.docker.network.bridge.gateway_mode_ipv4/ipv6: isolated` (Docker 28+) on the `backend` network gives the bridge no host address and closes that path. Verified: before the change, `172.27.0.2:8000` was reachable from the host; after it, the container IP is unreachable and the bridge has no host address.
+- **Container hardening:** both containers run with a read-only root filesystem, `cap_drop: [ALL]` and `no-new-privileges`. The database is read-only through the root filesystem as well as through its file mode. The gateway runs as uid 65532 and the MCP server as uid 10001.
+- **Session close:** agentgateway answers the session-closing `DELETE` with `202 Accepted`. mcp 2.3.0 logs that as "Session termination failed: 202" because it expects 200 or 204. The session is closed, so the client filters out only that message.
+
+**Verified:**
+- All 27 server checks pass through the gateway.
+- The MCP server has no host port mapping, and its container IP can't be reached from the host.
+- The gateway listens only on `127.0.0.1:13000` and refuses connections on the LAN address.
+- The MCP server has no outbound network access (no route, no DNS).
+
 ### Phase 4: Authentication
 
 Files: `scripts/generate_credentials.sh`, gateway config
@@ -152,7 +166,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 0: Check the agentgateway v1.7 docs
 - [x] Phase 1: Data layer
 - [x] Phase 2: MCP server
-- [ ] Phase 3: Network and gateway with no policies
+- [x] Phase 3: Network and gateway with no policies
 - [ ] Phase 4: Authentication
 - [ ] Phase 5: Tool authorization
 - [ ] Phase 6: Rate limiting
