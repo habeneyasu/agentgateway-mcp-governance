@@ -4,9 +4,11 @@
 # Writes to gateway/credentials/ (git-ignored):
 #   signing-key.pem            RSA private key (stays on this machine; never mounted)
 #   jwks.json                  public key set, mounted read-only into agentgateway
+#   gateway.env                SESSION_KEY (AES-256-GCM) that encrypts MCP session IDs
 #   tokens/analyst.jwt         valid token, role=analyst
 #   tokens/auditor.jwt         valid token, role=auditor
 #   tokens/guest.jwt           valid token, role=guest (no tool access)
+#   tokens/ratelimit.jwt       valid token, own rate-limit bucket (rate-limit tests)
 #   tokens/expired.jwt         correct signature, expired        (negative test)
 #   tokens/wrong-issuer.jwt    correct signature, wrong iss       (negative test)
 #   tokens/wrong-audience.jwt  correct signature, wrong aud       (negative test)
@@ -50,6 +52,10 @@ cat > "$OUT/jwks.json" <<EOF
 EOF
 chmod 0644 "$OUT/jwks.json"   # read by the gateway's non-root user
 
+# Key for encrypting MCP session IDs. Without it, agentgateway falls back to
+# unencrypted session IDs because its config file is mounted read-only.
+printf 'SESSION_KEY=%s\n' "$(openssl rand -hex 32)" > "$OUT/gateway.env"
+
 # sign_jwt <key.pem> <payload-json>
 sign_jwt() {
   local header payload sig
@@ -71,6 +77,7 @@ KEY="$OUT/signing-key.pem"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/analyst.jwt"
 sign_jwt "$KEY" "$(claims auditor-1 auditor "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/auditor.jwt"
 sign_jwt "$KEY" "$(claims guest-1 guest "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/guest.jwt"
+sign_jwt "$KEY" "$(claims rate-limit-test analyst "$ISSUER" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/ratelimit.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "$AUDIENCE" $((NOW - 7200)) $((NOW - 3600)))" > "$TOKENS/expired.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "someone-else" "$AUDIENCE" "$NOW" "$EXP")" > "$TOKENS/wrong-issuer.jwt"
 sign_jwt "$KEY" "$(claims analyst-1 analyst "$ISSUER" "another-service" "$NOW" "$EXP")" > "$TOKENS/wrong-audience.jwt"

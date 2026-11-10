@@ -157,7 +157,20 @@ Files: `scripts/generate_credentials.sh`, gateway config
 
 - A local token-bucket rate limit.
 
-**Done when:** `test_rate_limits.py` passes. Going over the limit returns 429, and requests succeed again after the bucket refills.
+**Done when:** `test_rate_limits.py` passes. Going over the limit is rejected, and requests succeed again after the bucket refills.
+
+#### Notes from the build
+
+- **Policy:** `localRateLimit` with `type: requests` and `key: jwt.sub`: bursts of 100 HTTP requests per subject, refilled at 20 per second. One MCP session uses about 5 HTTP requests, so this allows about 20 quick sessions per user.
+- **Not a 429:** on MCP routes a limited request gets **HTTP 200 with a JSON-RPC error** `{"code": -32003, "message": "rate limit exceeded"}`, plus `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` headers. The gateway logs it with `reason=RateLimit`. Clients must check the JSON-RPC error, not the HTTP status.
+- **Dedicated test user:** `ratelimit.jwt` (`sub: rate-limit-test`) has its own bucket, so the rate-limit tests never drain other users' buckets.
+- **Session key (security fix):** agentgateway logged "no session key configured; MCP session IDs are not encrypted". It tries to write a generated key into its config file, which is mounted read-only. `generate_credentials.sh` now writes `SESSION_KEY` (32 random bytes, hex) to `gateway/credentials/gateway.env` (mode 0600). Compose loads it with `env_file` (`required: true`), and the warning no longer appears.
+
+**Verified (5 tests, 31 in the suite):**
+- The first 100 requests in a burst are allowed, and later ones are limited.
+- The limited response is a JSON-RPC error with rate-limit headers and no result.
+- Other users are unaffected.
+- The bucket refills within about 1 second.
 
 ### Phase 7: CEL response guardrails
 
@@ -195,7 +208,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 3: Network and gateway with no policies
 - [x] Phase 4: Authentication
 - [x] Phase 5: Tool authorization
-- [ ] Phase 6: Rate limiting
+- [x] Phase 6: Rate limiting
 - [ ] Phase 7: CEL response guardrails
 - [ ] Phase 8: Observability
 - [ ] Phase 9: Read-only proof and test harness
