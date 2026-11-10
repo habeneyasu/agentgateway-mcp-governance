@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication and per-role tool authorization are built and verified. Rate limiting comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization and per-user rate limiting are built and verified. Response masking comes next. See [Status](#status).
 
 ## Architecture
 
@@ -55,7 +55,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 | --- | --- | --- |
 | Authentication | Gateway | RS256 JWT validation against a local JWKS (`jwtAuth`, strict mode) |
 | Tool authorization | Gateway | CEL rules on the JWT `role` claim (`mcpAuthorization`): auditor gets all tools, analyst gets customer and account lookup, other roles get none. Blocked tools are hidden and calls to them denied |
-| Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`) |
+| Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`): bursts of 100 requests, refilled at 20/s. Over the limit, the caller gets JSON-RPC error `-32003` |
 | Response guardrails | Gateway | CEL masking of sensitive fields in tool responses (`mcpGuardrails`) |
 | Observability | Gateway | JSON access logs with caller identity and tool name; Prometheus metrics |
 | Input validation and limits | MCP server | Strict ID formats, row caps, per-record field allowlists |
@@ -88,8 +88,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 3 | Network isolation and gateway with no policies | ✅ Done |
 | 4 | Authentication | ✅ Done |
 | 5 | Tool authorization | ✅ Done |
-| 6 | Rate limiting | Next |
-| 7 | CEL response guardrails | Planned |
+| 6 | Rate limiting | ✅ Done |
+| 7 | CEL response guardrails | Next |
 | 8 | Observability | Planned |
 | 9 | Integration test suite | Planned |
 | 10 | Documentation | Planned |
@@ -104,7 +104,7 @@ The build order, design decisions and verification notes for each phase are in [
 Requirements: Docker 28 or later with Docker Compose, Python 3.12, and openssl.
 
 ```bash
-scripts/generate_credentials.sh     # signing key, JWKS and demo tokens in gateway/credentials/
+scripts/generate_credentials.sh     # signing key, JWKS, session key and demo tokens in gateway/credentials/
 docker compose up -d --build        # MCP server + agentgateway
 docker compose ps                   # gateway on 127.0.0.1:13000; MCP server has no host port
 ```

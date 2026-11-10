@@ -2,8 +2,8 @@
 #
 # agentgateway v1.7 configuration for the MCP governance reference implementation.
 #
-# Policies so far: jwtAuth (Phase 4), mcpAuthorization (Phase 5).
-# Still to come: localRateLimit, mcpGuardrails, logging/metrics.
+# Policies so far: jwtAuth (Phase 4), mcpAuthorization (Phase 5), localRateLimit (Phase 6).
+# Still to come: mcpGuardrails, logging/metrics.
 # Until masking (Phase 7) is in place, Compose publishes the gateway on 127.0.0.1 only.
 
 binds:
@@ -28,6 +28,14 @@ binds:
           rules:
           - 'jwt.role == "auditor"'
           - 'jwt.role == "analyst" && mcp.tool.name in ["get_customer", "get_account"]'
+        # Per-user token bucket on HTTP requests (one MCP session uses ~5).
+        # Each JWT subject gets its own bucket: bursts of up to 100, refilled at 20/s.
+        localRateLimit:
+        - type: requests
+          key: jwt.sub
+          maxTokens: 100
+          tokensPerFill: 20
+          fillInterval: 1s
       backends:
       - mcp:
           targets:
