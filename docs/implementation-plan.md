@@ -257,4 +257,4 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 7: CEL response guardrails
 - [x] Phase 8: Observability
 - [x] Phase 9: Read-only proof and test harness
-- [ ] Phase 10: Documentation
+- [x] Phase 10: Documentation
