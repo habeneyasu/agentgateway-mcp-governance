@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, and the gateway with network isolation are built and verified. The gateway doesn't enforce any policies yet; authentication comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation and gateway JWT authentication are built and verified. Tool authorization comes next. See [Status](#status).
 
 ## Architecture
 
@@ -53,7 +53,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 
 | Control | Enforced by | How |
 | --- | --- | --- |
-| Authentication | Gateway | JWT validation (`jwtAuth`, strict mode) |
+| Authentication | Gateway | RS256 JWT validation against a local JWKS (`jwtAuth`, strict mode) |
 | Tool authorization | Gateway | CEL rules on JWT claims (`mcpAuthorization`); blocked tools are hidden from the tool list |
 | Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`) |
 | Response guardrails | Gateway | CEL masking of sensitive fields in tool responses (`mcpGuardrails`) |
@@ -86,8 +86,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 1 | Data layer: schema, seed data, read-only access | ✅ Done |
 | 2 | MCP server: four tools, app-level restrictions, container | ✅ Done |
 | 3 | Network isolation and gateway with no policies | ✅ Done |
-| 4 | Authentication | Next |
-| 5 | Tool authorization | Planned |
+| 4 | Authentication | ✅ Done |
+| 5 | Tool authorization | Next |
 | 6 | Rate limiting | Planned |
 | 7 | CEL response guardrails | Planned |
 | 8 | Observability | Planned |
@@ -99,24 +99,35 @@ The build order, design decisions and verification notes for each phase are in [
 ## Running the stack (development only)
 
 > [!WARNING]
-> The gateway doesn't enforce any policies yet, and the MCP server returns sensitive fields unmasked. Masking is the gateway's job (Phase 7). Until the gateway phases are complete, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
+> The gateway requires a valid JWT, but it doesn't yet restrict tools per role or mask sensitive fields (Phases 5 and 7). Until those are in place, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
 
-Requirements: Docker 28 or later with Docker Compose, and Python 3.12 for the client.
+Requirements: Docker 28 or later with Docker Compose, Python 3.12, and openssl.
 
 ```bash
+scripts/generate_credentials.sh     # signing key, JWKS and demo tokens in gateway/credentials/
 docker compose up -d --build        # MCP server + agentgateway
 docker compose ps                   # gateway on 127.0.0.1:13000; MCP server has no host port
 ```
 
-Run the scripted client through the gateway:
+Run the scripted client through the gateway with a demo token:
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r mcp-client/requirements.txt
+export MCP_TOKEN="$(cat gateway/credentials/tokens/analyst.jwt)"
 
 python mcp-client/client.py demo    # list tools, then call each one
 python mcp-client/client.py list
 python mcp-client/client.py call get_customer '{"customer_id": "CUST-0001"}'
+```
+
+Requests without a valid token get `401 Unauthorized`. After re-running `generate_credentials.sh`, restart the gateway with `docker compose restart agentgateway`.
+
+Run the integration tests while the stack is up:
+
+```bash
+pip install -r tests/requirements.txt
+pytest
 ```
 
 The gateway serves Streamable HTTP at `http://127.0.0.1:13000/mcp`, so any MCP client works, for example the [MCP Inspector](https://github.com/modelcontextprotocol/inspector). To use a different host port, copy `.env.example` to `.env` and set `GATEWAY_PORT`; the client takes `--url` or `MCP_GATEWAY_URL`.

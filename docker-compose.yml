@@ -26,6 +26,9 @@ services:
     command: ["-f", "/config/agentgateway.yaml"]
     volumes:
       - ./gateway/config:/config:ro
+      # Public keys only; the signing key is never mounted.
+      # Run scripts/generate_credentials.sh first.
+      - ./gateway/credentials/jwks.json:/credentials/jwks.json:ro
     ports:
       # Loopback only. Widening this is an explicit, documented opt-in.
       - "127.0.0.1:${GATEWAY_PORT:-13000}:3000"

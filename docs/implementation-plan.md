@@ -121,6 +121,19 @@ Files: `scripts/generate_credentials.sh`, gateway config
 
 **Done when:** `tests/integration/test_authentication.py` passes.
 
+#### Notes from the build
+
+- **Credentials:** `generate_credentials.sh` uses only bash, openssl, basenc and xxd. It writes `gateway/credentials/` (git-ignored), containing an RS256 signing key, `jwks.json` (`kid: mcp-governance-demo-1`), `analyst.jwt` and `auditor.jwt` (24h; set `TOKEN_TTL_SECONDS` to change), and four negative-test tokens: expired, wrong issuer, wrong audience, untrusted key.
+- **Claims:** `iss: agentgateway-mcp-governance`, `aud: mcp-gateway`, `sub` (`analyst-1` / `auditor-1`), `role` (`analyst` / `auditor`). Phase 5 authorizes on `jwt.role`.
+- **Only the public key reaches the gateway:** Compose mounts `jwks.json` alone, read-only, at `/credentials/jwks.json`. The signing key stays on the host.
+- **Policy:** `jwtAuth` in `mode: strict` on the route. Regenerating credentials needs `docker compose restart agentgateway`.
+- **Test harness started early:** `pytest.ini`, `tests/requirements.txt` and `tests/conftest.py` (gateway URL, a token loader, a raw-HTTP helper for status codes, an MCP session helper). Phase 9 adds to them.
+
+**Verified (10 tests):**
+- Missing tokens, malformed tokens, `Basic` instead of `Bearer`, bad signatures, expired tokens, wrong issuer and wrong audience all get **401**.
+- A rejected `tools/call` returns no data.
+- Valid analyst and auditor tokens can list and call tools.
+
 ### Phase 5: Tool authorization
 
 - MCP authorization rules written in CEL that check JWT claims. `analyst` can use customers and accounts; `auditor` can use all four tools.
@@ -167,7 +180,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 1: Data layer
 - [x] Phase 2: MCP server
 - [x] Phase 3: Network and gateway with no policies
-- [ ] Phase 4: Authentication
+- [x] Phase 4: Authentication
 - [ ] Phase 5: Tool authorization
 - [ ] Phase 6: Rate limiting
 - [ ] Phase 7: CEL response guardrails

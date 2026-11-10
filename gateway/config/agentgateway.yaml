@@ -2,10 +2,9 @@
 #
 # agentgateway v1.7 configuration for the MCP governance reference implementation.
 #
-# Phase 3 baseline: route MCP traffic to the internal MCP server with NO policies.
-# Anything that can reach the gateway's port can read unmasked data, so Compose
-# publishes it on 127.0.0.1 only. Policies are added in Phases 4-8:
-#   jwtAuth, mcpAuthorization, localRateLimit, mcpGuardrails, logging/metrics.
+# Policies so far: jwtAuth (Phase 4).
+# Still to come: mcpAuthorization, localRateLimit, mcpGuardrails, logging/metrics.
+# Until masking (Phase 7) is in place, Compose publishes the gateway on 127.0.0.1 only.
 
 binds:
 - port: 3000
@@ -13,6 +12,15 @@ binds:
   - name: mcp
     routes:
     - name: mcp-governance
+      policies:
+        # Every request needs a valid RS256 JWT from scripts/generate_credentials.sh.
+        # Missing or invalid tokens are rejected before any MCP processing.
+        jwtAuth:
+          mode: strict
+          issuer: agentgateway-mcp-governance
+          audiences: [mcp-gateway]
+          jwks:
+            file: /credentials/jwks.json
       backends:
       - mcp:
           targets:
