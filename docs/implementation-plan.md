@@ -226,6 +226,17 @@ Files: `tests/conftest.py`, `tests/integration/test_read_only_access.py`, `Makef
 - `conftest.py` provides fixtures for the gateway URL, the tokens per role, and an MCP session helper.
 - `Makefile` targets: `creds`, `up`, `down`, `test`, `logs`, `clean`.
 
+#### Notes from the build
+
+- **`test_read_only_access.py`** (11 tests):
+  - Through the gateway: all four tools are `readOnlyHint` with no `outputSchema`; each response is a single JSON text block with no `structuredContent` (invariant 1); SQL injection strings are rejected by app validation and the data is intact afterwards (invariant 2).
+  - Inside the MCP server container: uid 10001; the database is `root:root 0444` under `root:root 0755` (invariant 3); writes are blocked through the app's connection, a read-write open with `query_only`, a plain SQLite connection, a raw file append, a new file in `/data`, and the root filesystem.
+- **`test_isolation.py`** (6 tests): the MCP server has no published ports and its container IP can't be reached from the host; all gateway ports are bound to `127.0.0.1`; the MCP server has no outbound network access; both containers are non-root with read-only root filesystems, `CapDrop: [ALL]` and `no-new-privileges`.
+- **Docker-dependent tests** use `requires_docker` from `conftest.py` and are skipped when the docker CLI isn't available. `conftest.py` also provides `compose()` and `container_python()`.
+- **`Makefile`:** `help`, `venv`, `creds`, `up` (generates credentials if missing; `--wait` for health checks), `down`, `restart`, `test`, `demo`, `logs`, `metrics`, `clean`.
+
+**Verified:** the full suite passes, **69 tests**.
+
 ### Phase 10: Documentation
 
 Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`, `gateway/policies/README.md`
@@ -245,5 +256,5 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 6: Rate limiting
 - [x] Phase 7: CEL response guardrails
 - [x] Phase 8: Observability
-- [ ] Phase 9: Read-only proof and test harness
+- [x] Phase 9: Read-only proof and test harness
 - [ ] Phase 10: Documentation
