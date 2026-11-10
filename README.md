@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization and per-user rate limiting are built and verified. Response masking comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting and response masking are built and verified. Observability comes next. See [Status](#status).
 
 ## Architecture
 
@@ -56,7 +56,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 | Authentication | Gateway | RS256 JWT validation against a local JWKS (`jwtAuth`, strict mode) |
 | Tool authorization | Gateway | CEL rules on the JWT `role` claim (`mcpAuthorization`): auditor gets all tools, analyst gets customer and account lookup, other roles get none. Blocked tools are hidden and calls to them denied |
 | Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`): bursts of 100 requests, refilled at 20/s. Over the limit, the caller gets JSON-RPC error `-32003` |
-| Response guardrails | Gateway | CEL masking of sensitive fields in tool responses (`mcpGuardrails`) |
+| Response guardrails | Gateway | CEL masking in tool responses (`mcpGuardrails`): national ID `***-**-3401`, account number `********1979`, email `***@example.com`, phone `***-0101`; any other national ID or email becomes `[REDACTED]` |
 | Observability | Gateway | JSON access logs with caller identity and tool name; Prometheus metrics |
 | Input validation and limits | MCP server | Strict ID formats, row caps, per-record field allowlists |
 | Read-only storage | MCP server | SQLite `mode=ro` and `PRAGMA query_only`; database file `0444`, owned by root |
@@ -89,8 +89,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 4 | Authentication | ✅ Done |
 | 5 | Tool authorization | ✅ Done |
 | 6 | Rate limiting | ✅ Done |
-| 7 | CEL response guardrails | Next |
-| 8 | Observability | Planned |
+| 7 | CEL response guardrails | ✅ Done |
+| 8 | Observability | Next |
 | 9 | Integration test suite | Planned |
 | 10 | Documentation | Planned |
 
@@ -99,7 +99,7 @@ The build order, design decisions and verification notes for each phase are in [
 ## Running the stack (development only)
 
 > [!WARNING]
-> The gateway requires a valid JWT and restricts tools per role, but it doesn't yet mask sensitive fields (Phase 7). Until those are in place, keep the gateway bound to `127.0.0.1` (the default) and never publish the MCP server's port.
+> The MCP server returns sensitive fields unmasked; only the gateway masks them. Never publish the MCP server's port. The gateway is bound to `127.0.0.1` by default; exposing it more widely should be a deliberate decision.
 
 Requirements: Docker 28 or later with Docker Compose, Python 3.12, and openssl.
 
