@@ -2,8 +2,8 @@
 #
 # agentgateway v1.7 configuration for the MCP governance reference implementation.
 #
-# Policies so far: jwtAuth (Phase 4).
-# Still to come: mcpAuthorization, localRateLimit, mcpGuardrails, logging/metrics.
+# Policies so far: jwtAuth (Phase 4), mcpAuthorization (Phase 5).
+# Still to come: localRateLimit, mcpGuardrails, logging/metrics.
 # Until masking (Phase 7) is in place, Compose publishes the gateway on 127.0.0.1 only.
 
 binds:
@@ -21,6 +21,13 @@ binds:
           audiences: [mcp-gateway]
           jwks:
             file: /credentials/jwks.json
+        # Per-tool access by role. Rules are OR-ed; anything not allowed is denied.
+        # Denied tools are removed from tools/list, and calls to them are rejected.
+        # Allow rules only: an evaluation error then fails closed (no access).
+        mcpAuthorization:
+          rules:
+          - 'jwt.role == "auditor"'
+          - 'jwt.role == "analyst" && mcp.tool.name in ["get_customer", "get_account"]'
       backends:
       - mcp:
           targets:

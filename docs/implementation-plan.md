@@ -140,6 +140,19 @@ Files: `scripts/generate_credentials.sh`, gateway config
 
 **Done when:** `test_authorization.py` passes. Blocked tools don't appear in the tool list, and calling one is denied.
 
+#### Notes from the build
+
+- **Rules** (allow-only, OR-ed): `jwt.role == "auditor"` gets all tools; `jwt.role == "analyst" && mcp.tool.name in ["get_customer", "get_account"]`. Any other role gets nothing.
+- **New `guest.jwt`** (valid signature, `role: guest`) shows that an authenticated but unlisted role sees and can call no tools.
+- **Denied calls** return the JSON-RPC error `unknown resource`, identical to calling a tool that doesn't exist. A denial doesn't reveal that the tool exists.
+- **Test harness:** `conftest.py` filters out the harmless "Session termination failed: 202" message. In `test_authentication.py`, the valid-token test now checks access, not the exact tool set.
+
+**Verified (16 tests, 26 in the suite):**
+- Tool lists per role: auditor 4, analyst 2, guest 0.
+- Every allowed call succeeds.
+- Every denied call is rejected, even when the caller knows the tool name, and returns no data.
+- A denied call is indistinguishable from a call to a missing tool.
+
 ### Phase 6: Rate limiting
 
 - A local token-bucket rate limit.
@@ -181,7 +194,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 2: MCP server
 - [x] Phase 3: Network and gateway with no policies
 - [x] Phase 4: Authentication
-- [ ] Phase 5: Tool authorization
+- [x] Phase 5: Tool authorization
 - [ ] Phase 6: Rate limiting
 - [ ] Phase 7: CEL response guardrails
 - [ ] Phase 8: Observability

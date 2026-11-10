@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,11 @@ from mcp.client.streamable_http import streamable_http_client
 ROOT = Path(__file__).resolve().parents[1]
 TOKENS_DIR = ROOT / "gateway" / "credentials" / "tokens"
 GATEWAY_URL = os.environ.get("MCP_GATEWAY_URL", "http://127.0.0.1:13000/mcp")
+
+# agentgateway closes sessions with 202 Accepted; mcp 2.3.0 logs that as a failure.
+logging.getLogger("mcp.client.streamable_http").addFilter(
+    lambda record: record.getMessage() != "Session termination failed: 202"
+)
 
 INITIALIZE = {
     "jsonrpc": "2.0",
