@@ -2,9 +2,9 @@
 #
 # agentgateway v1.7 configuration for the MCP governance reference implementation.
 #
-# Policies so far: jwtAuth (Phase 4), mcpAuthorization (Phase 5), localRateLimit (Phase 6).
-# Still to come: mcpGuardrails, logging/metrics.
-# Until masking (Phase 7) is in place, Compose publishes the gateway on 127.0.0.1 only.
+# Policies: jwtAuth (Phase 4), mcpAuthorization (Phase 5), localRateLimit (Phase 6),
+# mcpGuardrails (Phase 7). Still to come: logging/metrics (Phase 8).
+# Compose publishes the gateway on 127.0.0.1 by default.
 
 binds:
 - port: 3000
@@ -36,6 +36,32 @@ binds:
           maxTokens: 100
           tokensPerFill: 20
           fillInterval: 1s
+        # Mask sensitive fields in every tool response before it leaves the gateway.
+        # Tools return one JSON text block (no structuredContent), so rewriting
+        # content[].text covers the whole response. Field-anchored masks keep the
+        # last 4 characters; generic patterns then redact any national ID or email
+        # left in other fields. Expression errors fail closed (the call is rejected).
+        # agentgateway expands environment variables anywhere in this file, even in
+        # comments, so a literal dollar sign is written `$$`: `$$1` is regex group 1.
+        mcpGuardrails:
+          processors:
+          - kind: expression
+            methods: {"tools/call": response}
+            condition: has(mcp.result.content)
+            transform: >-
+              mcp.result.with(r, r.merge({
+                'content': r.content.map(item,
+                  item.type == 'text'
+                    ? item.merge({'text': item.text
+                        .regexReplaceAll(r'("national_id":\s*")\d{3}-\d{2}-(\d{4})"', '$$1***-**-$$2"')
+                        .regexReplaceAll(r'("account_number":\s*")\d+(\d{4})"', '$$1********$$2"')
+                        .regexReplaceAll(r'("email":\s*")[^"@]+@', '$$1***@')
+                        .regexReplaceAll(r'("phone":\s*")[^"]*(\d{4})"', '$$1***-$$2"')
+                        .regexReplaceAll(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED]')
+                        .regexReplaceAll(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[REDACTED]')})
+                    : item
+                )
+              }))
       backends:
       - mcp:
           targets:

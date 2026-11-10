@@ -178,6 +178,21 @@ Files: `scripts/generate_credentials.sh`, gateway config
 
 **Done when:** `test_response_guardrails.py` passes.
 
+#### Notes from the build
+
+- **Processor:** one `mcpGuardrails` processor (`kind: expression`, `methods: {"tools/call": response}`) rewrites `content[].text` with `regexReplaceAll`. Field-anchored masks keep the last 4 characters: national ID `***-**-3401`, account number `********1979`, email `***@example.com` (domain kept), phone `***-0101`. Generic national-ID and email patterns then replace any value left in other fields with `[REDACTED]`.
+- **`$` must be written `$$`:** agentgateway expands environment variables anywhere in the config file, **including comments**. Regex group references are therefore written `$$1`, and a comment containing a bare `$NAME` stops the gateway from starting ("environment variable not found"). `\$` does not escape it.
+- **Raw strings:** the CEL regexes use raw strings (`r'...'`), so backslashes need no double escaping.
+- **Fails closed:** an expression error, or a transform that produces an invalid MCP body, rejects the call instead of returning unmasked data.
+- **Masking happens only at the gateway:** the MCP server still returns raw values, so network isolation (Phase 3) remains essential.
+
+**Verified (16 tests, 47 in the suite):**
+- All 5 customers have national ID, email and phone masked; all 7 accounts have the account number masked.
+- No raw national ID, 12-digit account number, `@example.com` address or 555-01xx phone appears in any response.
+- Transactions and ledger entries are unchanged.
+- Tool error messages still reach the caller.
+- No response carries `structuredContent`.
+
 ### Phase 8: Observability
 
 - Structured access logs that include the caller's identity and the MCP tool name, plus the metrics endpoint.
@@ -209,7 +224,7 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 4: Authentication
 - [x] Phase 5: Tool authorization
 - [x] Phase 6: Rate limiting
-- [ ] Phase 7: CEL response guardrails
+- [x] Phase 7: CEL response guardrails
 - [ ] Phase 8: Observability
 - [ ] Phase 9: Read-only proof and test harness
 - [ ] Phase 10: Documentation
