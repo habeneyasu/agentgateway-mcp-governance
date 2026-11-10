@@ -199,6 +199,25 @@ Files: `scripts/generate_credentials.sh`, gateway config
 
 **Done when:** a test checks the logs or metrics, and the docs explain how to read them.
 
+#### Notes from the build
+
+- **Logs:** `config.logging.format: json`. Every request is one JSON line with built-in fields (`jwt.sub`, `mcp.method.name`, `gen_ai.tool.name`, `http.status`, `reason`, `duration`) plus custom fields from `config.logging.fields.add`: `user.id` (`jwt.sub`), `user.role` (`jwt.role`) and `mcp.tool` (`mcp.tool.name`). A field whose expression can't be evaluated, such as one needing a JWT on a rejected request, is left out.
+- **Metrics:** `config.statsAddr: 0.0.0.0:15020`, published at `127.0.0.1:${METRICS_PORT:-15020}`. In v1.7 the MCP counter is `agentgateway_mcp_requests_total{method, resource_type, server, resource}`; older examples show `tool_calls_total`. It counts attempts, denied ones included. `agentgateway_requests_total{status, reason}` shows why requests failed.
+- **How each control appears:**
+
+  | Event | HTTP status | `reason` |
+  | --- | --- | --- |
+  | Allowed call | 200 | `Upstream` |
+  | Authentication failure | 401 | `JwtAuth` |
+  | Authorization denial | 400 | `Authorization` |
+  | Rate limited | 200 (JSON-RPC `-32003`) | `RateLimit` (in logs) |
+
+**Verified (5 tests, 52 in the suite):**
+- The metrics endpoint is served.
+- The per-tool counter goes up by 1 after a call.
+- Each authentication failure and each authorization denial is counted.
+- An allowed call's log line has the right `user.id`, `user.role` and `mcp.tool`.
+
 ### Phase 9: Read-only proof and test harness
 
 Files: `tests/conftest.py`, `tests/integration/test_read_only_access.py`, `Makefile`, `pytest.ini`
@@ -225,6 +244,6 @@ Files: `docs/security-model.md`, `docs/testing.md`, `README.md`, `.env.example`,
 - [x] Phase 5: Tool authorization
 - [x] Phase 6: Rate limiting
 - [x] Phase 7: CEL response guardrails
-- [ ] Phase 8: Observability
+- [x] Phase 8: Observability
 - [ ] Phase 9: Read-only proof and test harness
 - [ ] Phase 10: Documentation

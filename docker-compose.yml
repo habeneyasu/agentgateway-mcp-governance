@@ -36,6 +36,8 @@ services:
     ports:
       # Loopback only. Widening this is an explicit, documented opt-in.
       - "127.0.0.1:${GATEWAY_PORT:-13000}:3000"
+      # Prometheus metrics, loopback only.
+      - "127.0.0.1:${METRICS_PORT:-15020}:15020"
     networks:
       - backend
       - frontend

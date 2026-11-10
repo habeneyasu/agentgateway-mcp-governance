@@ -3,8 +3,22 @@
 # agentgateway v1.7 configuration for the MCP governance reference implementation.
 #
 # Policies: jwtAuth (Phase 4), mcpAuthorization (Phase 5), localRateLimit (Phase 6),
-# mcpGuardrails (Phase 7). Still to come: logging/metrics (Phase 8).
-# Compose publishes the gateway on 127.0.0.1 by default.
+# mcpGuardrails (Phase 7). Observability: JSON access logs and metrics (Phase 8).
+# Compose publishes the gateway and its metrics on 127.0.0.1 only.
+
+config:
+  # Prometheus metrics (agentgateway_mcp_requests_total, agentgateway_requests_total, ...).
+  # Listens on all container interfaces; Compose publishes it on 127.0.0.1:15020 only.
+  statsAddr: 0.0.0.0:15020
+  logging:
+    format: json
+    fields:
+      # Who called what, on every request log line. Fields whose expression
+      # cannot be evaluated (e.g. no JWT on a rejected request) are omitted.
+      add:
+        user.id: jwt.sub
+        user.role: jwt.role
+        mcp.tool: mcp.tool.name
 
 binds:
 - port: 3000

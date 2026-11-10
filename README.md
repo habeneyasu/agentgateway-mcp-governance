@@ -7,7 +7,7 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
 > [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting and response masking are built and verified. Observability comes next. See [Status](#status).
+> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting, response masking and observability are built and verified. The final test and documentation pass comes next. See [Status](#status).
 
 ## Architecture
 
@@ -57,7 +57,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 | Tool authorization | Gateway | CEL rules on the JWT `role` claim (`mcpAuthorization`): auditor gets all tools, analyst gets customer and account lookup, other roles get none. Blocked tools are hidden and calls to them denied |
 | Rate limiting | Gateway | Per-user token bucket (`localRateLimit`, keyed by `jwt.sub`): bursts of 100 requests, refilled at 20/s. Over the limit, the caller gets JSON-RPC error `-32003` |
 | Response guardrails | Gateway | CEL masking in tool responses (`mcpGuardrails`): national ID `***-**-3401`, account number `********1979`, email `***@example.com`, phone `***-0101`; any other national ID or email becomes `[REDACTED]` |
-| Observability | Gateway | JSON access logs with caller identity and tool name; Prometheus metrics |
+| Observability | Gateway | JSON access logs with `user.id`, `user.role` and `mcp.tool`; Prometheus metrics on `127.0.0.1:15020`, counted per tool and per rejection reason |
 | Input validation and limits | MCP server | Strict ID formats, row caps, per-record field allowlists |
 | Read-only storage | MCP server | SQLite `mode=ro` and `PRAGMA query_only`; database file `0444`, owned by root |
 | Network isolation | Docker Compose | MCP server only on an internal, host-isolated network with no internet access; gateway published on `127.0.0.1` |
@@ -90,8 +90,8 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 5 | Tool authorization | ✅ Done |
 | 6 | Rate limiting | ✅ Done |
 | 7 | CEL response guardrails | ✅ Done |
-| 8 | Observability | Next |
-| 9 | Integration test suite | Planned |
+| 8 | Observability | ✅ Done |
+| 9 | Integration test suite | Next |
 | 10 | Documentation | Planned |
 
 The build order, design decisions and verification notes for each phase are in [docs/implementation-plan.md](docs/implementation-plan.md).
@@ -121,7 +121,9 @@ python mcp-client/client.py list
 python mcp-client/client.py call get_customer '{"customer_id": "CUST-0001"}'
 ```
 
-Requests without a valid token get `401 Unauthorized`. After re-running `generate_credentials.sh`, restart the gateway with `docker compose restart agentgateway`.
+Requests without a valid token get `401 Unauthorized`.
+
+Watch the gateway: `docker compose logs -f agentgateway` shows one JSON line per request (caller, role, tool, status, reason), and `curl -s 127.0.0.1:15020/metrics | grep agentgateway_mcp_requests_total` shows counts per tool. After re-running `generate_credentials.sh`, restart the gateway with `docker compose restart agentgateway`.
 
 Run the integration tests while the stack is up:
 

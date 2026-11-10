@@ -106,6 +106,7 @@ agentgateway-mcp-governance/
 │   │   ├── test_authorization.py
 │   │   ├── test_rate_limits.py
 │   │   ├── test_response_guardrails.py
+│   │   ├── test_observability.py
 │   │   └── test_read_only_access.py
 │   │
 │   └── conftest.py
