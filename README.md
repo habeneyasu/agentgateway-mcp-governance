@@ -6,9 +6,6 @@ AI agents increasingly reach enterprise systems through the Model Context Protoc
 
 This project shows how agentgateway can act as a central governance layer in front of an MCP server. Authentication, tool authorization, rate limiting, response masking and observability are enforced at the gateway, not built into the business application. The goal is a small, reproducible example that developers can run, read and adapt.
 
-> [!NOTE]
-> **Work in progress.** The data layer, the MCP server, network isolation, JWT authentication, per-role tool authorization, per-user rate limiting, response masking and observability are built and covered by 69 integration tests. Final documentation comes next. See [Status](#status).
-
 ## Architecture
 
 ```text
@@ -47,7 +44,7 @@ This project shows how agentgateway can act as a central governance layer in fro
 
 Every client request passes through the gateway. The gateway decides who may call which tool, how often, and what the caller may see in the response. The MCP server runs authorized tools against synthetic, read-only financial data.
 
-See [docs/architecture.md](docs/architecture.md) for the full design.
+See [docs/architecture.md](docs/architecture.md) for the full design and [docs/security-model.md](docs/security-model.md) for threats, controls and residual risks.
 
 ## Security controls
 
@@ -92,7 +89,7 @@ The data is entirely synthetic: 5 customers, 7 accounts and 43 transactions. Sen
 | 7 | CEL response guardrails | ✅ Done |
 | 8 | Observability | ✅ Done |
 | 9 | Integration test suite | ✅ Done |
-| 10 | Documentation | Next |
+| 10 | Documentation | ✅ Done |
 
 The build order, design decisions and verification notes for each phase are in [docs/implementation-plan.md](docs/implementation-plan.md).
 
@@ -158,6 +155,16 @@ The MCP server reads its configuration from environment variables:
 | `MCP_HOST` | `0.0.0.0` (in the container) | Address to listen on |
 | `MCP_PORT` | `8000` | Port to listen on |
 | `MCP_MAX_ROWS` | `50` | Largest `limit` the list tools accept (1–500) |
+
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | Design, layers and project structure |
+| [docs/security-model.md](docs/security-model.md) | Assets, trust boundaries, threats and controls, residual risks |
+| [docs/testing.md](docs/testing.md) | Running the tests, what each one proves, troubleshooting |
+| [gateway/policies/README.md](gateway/policies/README.md) | Each gateway policy explained and how to change it safely |
+| [docs/implementation-plan.md](docs/implementation-plan.md) | Build order, decisions and verification notes per phase |
 
 ## Project structure
 
