@@ -8,41 +8,13 @@ This project shows how agentgateway can act as a central governance layer in fro
 
 ## Architecture
 
-```text
-┌──────────────────────────────────────┐
-│       MCP Client / AI Agent          │
-└──────────────────┬───────────────────┘
-                   │ Streamable HTTP
-                   ▼
-┌──────────────────────────────────────┐
-│          agentgateway v1.7           │
-│                                      │
-│  • Authentication                    │
-│  • MCP Tool Authorization            │
-│  • Request Rate Limiting             │
-│  • CEL Response Guardrails           │
-│  • Usage Observability               │
-└──────────────────┬───────────────────┘
-                   │ Internal Network
-                   ▼
-┌──────────────────────────────────────┐
-│          Python MCP Server           │
-│                                      │
-│  • Customer Lookup                   │
-│  • Account Lookup                    │
-│  • Transaction Lookup                │
-│  • Ledger Lookup                     │
-│  • Application-Level Restrictions    │
-└──────────────────┬───────────────────┘
-                   │
-                   ▼
-┌──────────────────────────────────────┐
-│       Synthetic SQLite Database      │
-│             Read-Only                │
-└──────────────────────────────────────┘
-```
+![Reference architecture: MCP client, agentgateway with five controls, and an isolated MCP server with a read-only SQLite database](docs/images/architecture.png)
 
 Every client request passes through the gateway. The gateway decides who may call which tool, how often, and what the caller may see in the response. The MCP server runs authorized tools against synthetic, read-only financial data.
+
+Each request passes the gateway's policies in order and stops at the first check it fails:
+
+![Request flow: authentication, rate limiting, authorization, MCP server and response guardrail, with the outcome of each check](docs/images/request-flow.png)
 
 See [docs/architecture.md](docs/architecture.md) for the full design and [docs/security-model.md](docs/security-model.md) for threats, controls and residual risks.
 
@@ -175,7 +147,7 @@ agentgateway-mcp-governance/
 ├── mcp-server/      # Python MCP server, tools, restrictions, seed data, Dockerfile
 ├── tests/           # Integration tests for each control
 ├── scripts/         # Credential generation
-└── docs/            # Architecture and implementation plan
+└── docs/            # Architecture, security model, testing guide, plan and diagrams (docs/images/)
 ```
 
 ## Technology

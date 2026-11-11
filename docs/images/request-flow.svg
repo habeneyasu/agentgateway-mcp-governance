@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <style>
+      text { font-family: Inter, "Segoe UI", "Helvetica Neue", Arial, "Liberation Sans", "DejaVu Sans", sans-serif; fill: #0f172a; }
+      .title { font-size: 34px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #475569; }
+      .h { font-size: 20px; font-weight: 700; }
+      .b { font-size: 16px; fill: #334155; }
+      .s { font-size: 14px; fill: #475569; }
+      .mono { font-family: "JetBrains Mono", "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 14px; }
+      .edge { font-size: 14px; font-style: italic; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 2.5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="760" fill="#ffffff"/>
+
+  <text class="title" x="45" y="68">How agentgateway handles each MCP request</text>
+  <text class="subtitle" x="45" y="102">Policies run in order on one route. A request stops at the first check it fails.</text>
+
+  <!-- Step boxes: x = 45 + i*260, width 210 -->
+  <!-- 0 Agent -->
+  <rect x="45" y="170" width="210" height="150" rx="14" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+  <text class="h" x="150" y="212" text-anchor="middle">AI agent</text>
+  <text class="mono" x="150" y="248" text-anchor="middle">tools/call</text>
+  <text class="mono" x="150" y="270" text-anchor="middle">get_customer</text>
+  <text class="s" x="150" y="300" text-anchor="middle">+ Bearer JWT</text>
+
+  <!-- 1 Authentication -->
+  <rect x="305" y="170" width="210" height="150" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text class="h" x="410" y="212" text-anchor="middle">1 Authentication</text>
+  <text class="b" x="410" y="248" text-anchor="middle">signature · issuer</text>
+  <text class="b" x="410" y="272" text-anchor="middle">audience · expiry</text>
+  <text class="mono" x="410" y="302" text-anchor="middle" style="fill:#4f46e5">jwtAuth</text>
+
+  <!-- 2 Rate limiting -->
+  <rect x="565" y="170" width="210" height="150" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text class="h" x="670" y="212" text-anchor="middle">2 Rate limiting</text>
+  <text class="b" x="670" y="248" text-anchor="middle">100 burst · 20/s</text>
+  <text class="b" x="670" y="272" text-anchor="middle">one bucket per user</text>
+  <text class="mono" x="670" y="302" text-anchor="middle" style="fill:#4f46e5">localRateLimit</text>
+
+  <!-- 3 Authorization -->
+  <rect x="825" y="170" width="210" height="150" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text class="h" x="930" y="212" text-anchor="middle">3 Authorization</text>
+  <text class="b" x="930" y="248" text-anchor="middle">CEL allow rules on</text>
+  <text class="b" x="930" y="272" text-anchor="middle">jwt.role + tool name</text>
+  <text class="mono" x="930" y="302" text-anchor="middle" style="fill:#4f46e5">mcpAuthorization</text>
+
+  <!-- MCP server -->
+  <rect x="1085" y="170" width="210" height="150" rx="14" fill="#ffffff" stroke="#334155" stroke-width="2"/>
+  <text class="h" x="1190" y="212" text-anchor="middle">MCP server</text>
+  <text class="b" x="1190" y="248" text-anchor="middle">validates input</text>
+  <text class="b" x="1190" y="272" text-anchor="middle">queries read-only DB</text>
+  <text class="s" x="1190" y="302" text-anchor="middle">returns one JSON block</text>
+
+  <!-- 4 Guardrail -->
+  <rect x="1345" y="170" width="210" height="150" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text class="h" x="1450" y="212" text-anchor="middle">4 Guardrail</text>
+  <text class="b" x="1450" y="248" text-anchor="middle">masks sensitive</text>
+  <text class="b" x="1450" y="272" text-anchor="middle">fields (CEL)</text>
+  <text class="mono" x="1450" y="302" text-anchor="middle" style="fill:#4f46e5">mcpGuardrails</text>
+
+  <!-- forward arrows -->
+  <line class="line" x1="255" y1="245" x2="303" y2="245" marker-end="url(#arrow)"/>
+  <line class="line" x1="515" y1="245" x2="563" y2="245" marker-end="url(#arrow)"/>
+  <line class="line" x1="775" y1="245" x2="823" y2="245" marker-end="url(#arrow)"/>
+  <line class="line" x1="1035" y1="245" x2="1083" y2="245" marker-end="url(#arrow)"/>
+  <line class="line" x1="1295" y1="245" x2="1343" y2="245" marker-end="url(#arrow)"/>
+
+  <!-- down arrows -->
+  <line class="line" x1="410" y1="320" x2="410" y2="408" marker-end="url(#arrow)" stroke="#dc2626"/>
+  <text class="edge" x="420" y="370">invalid token</text>
+  <line class="line" x1="670" y1="320" x2="670" y2="408" marker-end="url(#arrow)"/>
+  <text class="edge" x="680" y="370">over the limit</text>
+  <line class="line" x1="930" y1="320" x2="930" y2="408" marker-end="url(#arrow)"/>
+  <text class="edge" x="940" y="370">tool not allowed</text>
+  <line class="line" x1="1190" y1="320" x2="1190" y2="408" marker-end="url(#arrow)"/>
+  <text class="edge" x="1200" y="370">invalid input</text>
+  <line class="line" x1="1450" y1="320" x2="1450" y2="408" marker-end="url(#arrow)"/>
+  <text class="edge" x="1460" y="370">to the agent</text>
+
+  <!-- outcome boxes -->
+  <rect x="305" y="410" width="210" height="120" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text class="h" x="410" y="448" text-anchor="middle" style="fill:#b91c1c">HTTP 401</text>
+  <text class="b" x="410" y="478" text-anchor="middle">Unauthorized</text>
+  <text class="mono" x="410" y="510" text-anchor="middle">reason: JwtAuth</text>
+
+  <rect x="565" y="410" width="210" height="120" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text class="h" x="670" y="448" text-anchor="middle" style="fill:#b91c1c">JSON-RPC -32003</text>
+  <text class="b" x="670" y="478" text-anchor="middle">HTTP 200, not 429</text>
+  <text class="mono" x="670" y="510" text-anchor="middle">reason: RateLimit</text>
+
+  <rect x="825" y="410" width="210" height="120" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text class="h" x="930" y="448" text-anchor="middle" style="fill:#b91c1c">HTTP 400</text>
+  <text class="b" x="930" y="478" text-anchor="middle">"unknown resource"</text>
+  <text class="mono" x="930" y="510" text-anchor="middle">reason: Authorization</text>
+
+  <rect x="1085" y="410" width="210" height="120" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+  <text class="h" x="1190" y="448" text-anchor="middle" style="fill:#b45309">Tool error</text>
+  <text class="b" x="1190" y="478" text-anchor="middle">isError: true</text>
+  <text class="s" x="1190" y="510" text-anchor="middle">e.g. not CUST-0000</text>
+
+  <rect x="1345" y="410" width="210" height="120" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text class="h" x="1450" y="448" text-anchor="middle" style="fill:#15803d">Masked result</text>
+  <text class="mono" x="1450" y="478" text-anchor="middle">***-**-3401</text>
+  <text class="s" x="1450" y="510" text-anchor="middle">error → call rejected</text>
+
+  <!-- Observability bar -->
+  <rect x="45" y="590" width="1510" height="110" rx="14" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+  <text class="h" x="75" y="632">5 Observability, at every step</text>
+  <text class="b" x="75" y="668">JSON access log per request: user.id, user.role, mcp.tool, status and reason.   Prometheus counters such as agentgateway_mcp_requests_total.</text>
+</svg>

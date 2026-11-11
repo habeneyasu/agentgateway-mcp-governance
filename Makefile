@@ -12,7 +12,8 @@ help: ## List targets
 
 venv: ## Create .venv with the client and test dependencies
 	python3 -m venv .venv
-	.venv/bin/pip install -q -r mcp-client/requirements.txt -r tests/requirements.txt
+	.venv/bin/pip install --disable-pip-version-check -r mcp-client/requirements.txt -r tests/requirements.txt
+	@echo "venv ready: activate with '. .venv/bin/activate'"
 
 creds: ## Generate (or rotate) keys, session key and demo tokens
 	scripts/generate_credentials.sh
